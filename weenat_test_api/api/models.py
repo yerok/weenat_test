@@ -1,22 +1,6 @@
 import uuid
 from django.db import models
 
-# class DataRecord(models.Model):
-#     """
-#     Represents a measurement record sent by a datalogger at a specific time and location.
-#     """
-#     # at = models.DateTimeField(help_text="Timestamp when the metric is recorded (ISO-8601 format).")
-#     datalogger = models.ForeignKey(
-#         Datalogger,
-#         on_delete=models.CASCADE,
-#         related_name='records',
-#         help_text="The datalogger device which recorded this data.")
-    
-#     lat = models.FloatField(help_text="Latitude in float representation.")
-#     lng = models.FloatField(help_text="Latitude in float representation.")
-    
-#     # def __str__(self):
-#     #     return f"Record at {self.at} from {self.datalogger}"
 
 class UUIDModel(models.Model):
     """
@@ -35,11 +19,6 @@ class Datalogger(UUIDModel):
     """
     lat = models.FloatField(help_text="Latitude in float representation.")
     lng = models.FloatField(help_text="Latitude in float representation.")
-
-    
-    # def __str__(self):
-    #     return str(self.id)
-
 
 class Measurement(models.Model):
     """

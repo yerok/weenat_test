@@ -112,8 +112,6 @@ class DataRecordRequestSerializer(serializers.Serializer):
 
 class DataRecordResponseSerializer(serializers.ModelSerializer):
     measured_at = serializers.DateTimeField(source="at")
-    # measured_at = atSerializer(source="at")
-
 
     class Meta:
         model = Measurement

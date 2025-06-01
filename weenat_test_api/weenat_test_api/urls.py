@@ -16,7 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from api.views import IngestDataView, GetDataView
+from api.views import IngestDataView, FetchRawDataView, SummaryView
 
 
 
@@ -24,5 +24,6 @@ from api.views import IngestDataView, GetDataView
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/ingest/', IngestDataView.as_view(), name="api_ingest_data" ),
-    path('api/data/', GetDataView.as_view(), name="api_records" )
+    path('api/data/', FetchRawDataView.as_view(), name="api_fetch_data_raw" ),
+    path('api/summary/', SummaryView.as_view(), name="api_fetch_data_aggregates" )
 ]

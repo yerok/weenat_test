@@ -1,3 +1,4 @@
+from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
@@ -51,12 +52,17 @@ class IngestDataView(APIView):
 
 # we use ListAPIView because we use directly the model - we can use django_filters
 # no need to create custom filters or to serialize query params
-class GetDataView(ListAPIView):
+class FetchRawDataView(ListAPIView):
 
     queryset = Measurement.objects.all()
     serializer_class = DataRecordResponseSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_class = MeasurementFilter
+    
+    def get_queryset(self):
+        datalogger_id = self.request.query_params.get("datalogger")
+        if not datalogger_id:
+            raise ValidationError({"datalogger": "This query parameter is required."})
 
 
 # custom view - we need to create our own filter and to serialize query params
@@ -65,7 +71,7 @@ class SummaryView(APIView):
     def get(self, request, *args, **kwargs):
 
         query_params_serializer = SummaryQueryParamsSerializer(
-            data=request.data)
+            data=request.query_params)
 
         if not query_params_serializer.is_valid():
             return Response(query_params_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -82,18 +88,18 @@ class SummaryView(APIView):
             return Response({"detail": "datalogger parameter is required."}, status=400)
         
         try:
-            datalogger = Datalogger.objects.get(datalogger_id)
+            datalogger = Datalogger.objects.get(id = datalogger_id)
         except Datalogger.DoesNotExist:
             return Response({"detail": "datalogger not found."}, status=404)
         
         measurements = Measurement.objects.filter(datalogger = datalogger)
         
         if since:
-            measurements.filter(at__gte=parse_datetime(since))
+            measurements = measurements.filter(at__gte=since)
         if before:
-            measurements.filter(at__lte=parse_datetime(before))
-        
-        if span == 'raw':
+            measurements = measurements.filter(at__lte=before)        
+            
+        if not span:
 
             from .serializers import DataRecordResponseSerializer
             raw_serializer = DataRecordResponseSerializer(measurements, many=True)

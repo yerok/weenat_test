@@ -1,10 +1,13 @@
+from collections import defaultdict
 import copy
 import json
 from datetime import timedelta, datetime
 import random
 from typing import Dict, Any, List
 from uuid import uuid4
-from django.utils.timezone import now
+from django.utils.timezone import now, make_naive
+
+from api.models import Measurement
 
 
 LABELS: List[str] = ['temp', 'hum', 'rain']
@@ -15,7 +18,7 @@ MEASUREMENT_RANGES: Dict[str, callable] = {
     'rain': lambda: random.choice([round(x * 0.2, 1) for x in range(11)])
 }
 
-# better to use fixed dataloggers than random ones
+# fixed dataloggers for testing purposes
 DATALOGGERS: Dict[str, Dict[str, float]] = {
     "c2a61e2e-068d-4670-a97c-72bfa5e2a58a": {"lat": 47.56321, "lng": 1.524568},
     "e6e4ae22-f8dd-4e9e-b0e6-7e2ddbc2c4ac": {"lat": 49.56321, "lng": -1.528768},
@@ -70,3 +73,34 @@ def generate_random_payload() -> Dict[str, Any]:
     }
 
     return payload
+
+def aggregate(measurements : List[Measurement], span: str) -> List[Dict[str, Any]]:
+    
+        aggregation = defaultdict(list)
+        
+        for m in measurements:
+                label = m.label
+                naive_dt = make_naive(m.at)
+                
+                if span == 'hour':
+                    time_slot = naive_dt.replace(minute=0, second=0, microsecond=0)
+                elif span == 'day':
+                    time_slot = naive_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+                else:
+                    raise ValueError(f"Unsupported span value: {span}")
+                
+                aggregation[(label, time_slot)].append(m.value)
+
+        expected = []
+        for (label, time_slot), values in aggregation.items():
+            if label == "rain":
+                value = sum(values)
+            else:
+                value = sum(values) / len(values)
+            expected.append({
+                'label': label,
+                'time_slot': time_slot.isoformat(),
+                'value': value
+            })
+            
+        return expected
