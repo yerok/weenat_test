@@ -1,16 +1,15 @@
 from uuid import UUID
+
+from django.utils.timezone import now
 from rest_framework import serializers
+
 from .models import Datalogger, Measurement
-from django.utils.timezone import now, is_aware, make_aware
-
-
 
 
 class LocationSerializer(serializers.Serializer):
-
     lat = serializers.FloatField()
     lng = serializers.FloatField()
-    
+
     def validate_lat(self, value):
         if not -90 <= value <= 90:
             raise serializers.ValidationError("Latitude must be between -90 and 90.")
@@ -20,95 +19,105 @@ class LocationSerializer(serializers.Serializer):
         if not -180 <= value <= 180:
             raise serializers.ValidationError("Longitude must be between -180 and 180.")
         return value
-    
+
+
 class MeasurementSerializer(serializers.Serializer):
-    
     label = serializers.ChoiceField(choices=[c[0] for c in Measurement.LABEL_CHOICES])
     value = serializers.FloatField()
 
     def validate(self, data):
-            label = data['label']
-            value = data['value']
+        label = data["label"]
+        value = data["value"]
 
-            if label == 'temp':
-                if not (-20 <= value <= 40):
-                    raise serializers.ValidationError({"value": "Temperature must be between -20 and 40."})
-                if round((value * 10) % 1, 5) != 0:
-                    raise serializers.ValidationError({"value": "Temperature must be in steps of 0.1."})
+        if label == "temp":
+            if not (-20 <= value <= 40):
+                raise serializers.ValidationError(
+                    {"value": "Temperature must be between -20 and 40."}
+                )
+            if round((value * 10) % 1, 5) != 0:
+                raise serializers.ValidationError(
+                    {"value": "Temperature must be in steps of 0.1."}
+                )
 
-            elif label == 'hum':
-                if not (20 <= value <= 100):
-                    raise serializers.ValidationError({"value": "Humidity must be between 20 and 100."})
-                if round((value * 10) % 1, 5) != 0:
-                    raise serializers.ValidationError({"value": "Humidity must be in steps of 0.1."})
+        elif label == "hum":
+            if not (20 <= value <= 100):
+                raise serializers.ValidationError(
+                    {"value": "Humidity must be between 20 and 100."}
+                )
+            if round((value * 10) % 1, 5) != 0:
+                raise serializers.ValidationError(
+                    {"value": "Humidity must be in steps of 0.1."}
+                )
 
-            elif label == 'rain':
-                if not (0 <= value <= 2):
-                    raise serializers.ValidationError({"value": "Rain must be between 0 and 2."})
-                if round((value * 5) % 1, 5) != 0:
-                    raise serializers.ValidationError({"value": "Rain must be in steps of 0.2."})
+        elif label == "rain":
+            if not (0 <= value <= 2):
+                raise serializers.ValidationError(
+                    {"value": "Rain must be between 0 and 2."}
+                )
+            if round((value * 5) % 1, 5) != 0:
+                raise serializers.ValidationError(
+                    {"value": "Rain must be in steps of 0.2."}
+                )
 
-            return data
+        return data
+
 
 class DataRecordRequestSerializer(serializers.Serializer):
-
     datalogger = serializers.CharField()
     location = LocationSerializer()
     measurements = MeasurementSerializer(many=True, required=True, allow_null=False)
     at = serializers.DateTimeField()
-    
+
     # if we use serializers.UUIDField() it would convert an int for instane to an UUID,
     # we do not want that so we check that it's a correct uuid
     def validate_datalogger(self, value):
         try:
             return str(UUID(value))  # On vérifie que c'est bien une UUID
-        except ValueError:
-            raise serializers.ValidationError("Le champ 'datalogger' doit être une UUID valide.")
-    
+        except ValueError as err:
+            raise serializers.ValidationError(
+                "'datalogger' field must be a valid UUID."
+            ) from err
+
     def validate_measurements(self, value):
-        
         if not value:
             raise serializers.ValidationError("Measurements cannot be empty.")
         return value
-    
+
     def validate_at(self, value):
-        
         if value > now():
-            raise serializers.ValidationError("The 'at' datetime cannot be in the future.")
+            raise serializers.ValidationError(
+                "The 'at' datetime cannot be in the future."
+            )
         return value
 
-
     def create(self, validated_data):
-
-        location_data = validated_data['location']
-        measurement_data = validated_data['measurements']
+        location_data = validated_data["location"]
+        measurement_data = validated_data["measurements"]
 
         datalogger, created = Datalogger.objects.get_or_create(
             # uuid=uuid,
             defaults={
-                'location_lat': location_data['lat'],
-                'location_lng': location_data['lng']
+                "location_lat": location_data["lat"],
+                "location_lng": location_data["lng"],
             }
         )
 
         measurement_instances = []
         for m in measurement_data:
             measurement = Measurement.objects.create(
-                datalogger=datalogger,
-                value=m['value'],
-                at=m['at']
+                datalogger=datalogger, value=m["value"], at=m["at"]
             )
             measurement_instances.append(measurement)
 
         return {
-            'datalogger': str(datalogger.id),
-            'location': {
-                'lat': datalogger.location_lat,
-                'lng': datalogger.location_lng
+            "datalogger": str(datalogger.id),
+            "location": {
+                "lat": datalogger.location_lat,
+                "lng": datalogger.location_lng,
             },
-            'measurements': measurement_data
+            "measurements": measurement_data,
         }
-        
+
 
 class DataRecordResponseSerializer(serializers.ModelSerializer):
     measured_at = serializers.DateTimeField(source="at")
@@ -116,16 +125,15 @@ class DataRecordResponseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Measurement
         fields = ["label", "measured_at", "value"]
-        
+
 
 class DataRecordAggregateResponseSerializer(serializers.Serializer):
-    
     label = serializers.CharField()
     time_slot = serializers.DateTimeField()
     value = serializers.FloatField()
-    
 
-# We need a serializer for /api/summary because the span is not handled natively with APIView / DRF / django_filters / 
+
+# We need a serializer for /api/summary because the span is not handled natively with APIView / DRF / django_filters /
 class SummaryQueryParamsSerializer(serializers.Serializer):
     since = serializers.DateTimeField(required=False)
     before = serializers.DateTimeField(required=False)

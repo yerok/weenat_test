@@ -1,6 +1,7 @@
-
 from django.core.management.base import BaseCommand
-from api.models import Datalogger, Measurement  
+
+from api.models import Datalogger, Measurement
+
 
 class Command(BaseCommand):
     help = "Delete all dataloggers and measurements from the database"
@@ -8,4 +9,6 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         Measurement.objects.all().delete()
         Datalogger.objects.all().delete()
-        self.stdout.write(self.style.SUCCESS("All dataloggers and measurements deleted"))
+        self.stdout.write(
+            self.style.SUCCESS("All dataloggers and measurements deleted")
+        )

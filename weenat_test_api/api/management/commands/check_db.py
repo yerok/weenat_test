@@ -1,6 +1,7 @@
-
 from django.core.management.base import BaseCommand
-from api.models import Datalogger, Measurement  
+
+from api.models import Datalogger, Measurement
+
 
 class Command(BaseCommand):
     help = "Show a summmary of the DB"

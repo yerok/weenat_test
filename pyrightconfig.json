@@ -1,0 +1,6 @@
+{
+  "typeCheckingMode": "strict",
+  "include": ["weenat_test_api"],
+  "exclude": ["**/migrations", "**/__pycache__"],
+  "reportMissingTypeStubs": false
+}

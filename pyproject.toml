@@ -1,0 +1,28 @@
+[tool.ruff]
+line-length = 88
+src = ["weenat_test_api"]  # your source folder
+include = ["*.py"]
+exclude = ["migrations", "__pycache__", "venv", ".venv", "env", ".env", ".git"]
+
+[tool.ruff.lint]
+select = [
+  "E",  # pycodestyle errors
+  "F",  # pyflakes
+  "B",  # bugbear: common bugs & anti-patterns
+  "I",  # isort-style import sorting
+]
+ignore = [
+  "E501",  # line length handled by formatter
+  "E203"   # spacing around colons (Black compatibility, if ever used)
+]
+preview = true  # enable latest rules
+
+[tool.ruff.lint.isort]
+force-sort-within-sections = true  # strictly sort within each import section
+combine-as-imports = true  # combine imports that use 'as'
+known-first-party = ["weenat_test_api"]  # your local modules
+
+[tool.ruff.format]
+quote-style = "double"
+docstring-code-format = true
+line-ending = "lf"
