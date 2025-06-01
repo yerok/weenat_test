@@ -26,3 +26,30 @@ known-first-party = ["weenat_test_api"]  # your local modules
 quote-style = "double"
 docstring-code-format = true
 line-ending = "lf"
+
+
+[tool.pyright]
+typeCheckingMode = "standard"
+include = ["weenat_test_api"]
+exclude = ["**/migrations", "**/__pycache__"]
+reportMissingTypeStubs = false
+reportUnknownVariableType = false
+reportAssignmentType = "none"
+reportIncompatibleVariableOverride = "none"
+
+
+# [tool.mypy]
+# plugins = [
+#   "mypy_django_plugin.main",
+#   "mypy_drf_plugin.main"
+# ]
+# strict = false
+# disallow_untyped_defs = true
+# warn_unused_ignores = true
+# check_untyped_defs = true
+# show_error_codes = true
+# explicit_package_bases = true
+# no_implicit_optional = true
+
+# [tool.mypy.plugins]
+# "django-stubs" = { django_settings_module = "weenat_test_api.settings" }

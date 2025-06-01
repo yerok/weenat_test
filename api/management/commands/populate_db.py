@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import random
+from typing import Any
 from uuid import uuid4
 
 from django.core.management.base import BaseCommand
@@ -18,7 +19,7 @@ RANGES = {
 class Command(BaseCommand):
     help = "Populate the database with random dataloggers and measurements"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: Any) -> None:
         parser.add_argument(
             "--dataloggers", type=int, default=3, help="Number of dataloggers"
         )
@@ -26,7 +27,7 @@ class Command(BaseCommand):
             "--measurements", type=int, default=50, help="Measurements per datalogger"
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         num_dataloggers = options["dataloggers"]
         num_measurements = options["measurements"]
 
@@ -50,13 +51,13 @@ class Command(BaseCommand):
                     minutes=random.randint(0, 59),
                     seconds=random.randint(0, 59),
                 )
-                at_str: str = at.isoformat(timespec="seconds")
 
                 label = random.choice(LABELS)
                 value = RANGES[label]()
 
+                # Passer l'objet datetime directement, pas sa chaîne ISO
                 Measurement.objects.create(
-                    datalogger=datalogger, label=label, value=value, at=at_str
+                    datalogger=datalogger, label=label, value=value, at=at
                 )
 
             self.stdout.write(f"Created datalogger: {datalogger.id}")

@@ -1,0 +1,10 @@
+{
+  "typeCheckingMode": "standard",
+  "include": ["weenat_test_api"],
+  "exclude": ["**/migrations", "**/__pycache__"],
+  "reportMissingTypeStubs": false,
+  "reportUnknownVariableType": false,
+  "reportAssignmentType": "none",
+  "reportIncompatibleVariableOverride": "none"
+}
+

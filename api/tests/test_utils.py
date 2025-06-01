@@ -3,7 +3,7 @@ import copy
 from datetime import datetime, timedelta
 import json
 import random
-from typing import Any, Dict, List
+from typing import Any, Callable, DefaultDict, Dict, List, Tuple
 
 from django.utils.timezone import make_naive, now
 
@@ -11,7 +11,7 @@ from api.models import Measurement
 
 LABELS: List[str] = ["temp", "hum", "rain"]
 
-MEASUREMENT_RANGES: Dict[str, callable] = {
+MEASUREMENT_RANGES: Dict[str, Callable[[], float]] = {
     "temp": lambda: round(random.uniform(-20, 40), 1),
     "hum": lambda: round(random.uniform(20, 100), 1),
     "rain": lambda: random.choice([round(x * 0.2, 1) for x in range(11)]),
@@ -25,7 +25,7 @@ DATALOGGERS: Dict[str, Dict[str, float]] = {
 }
 
 
-def print_json(data):
+def print_json(data: Any) -> None:
     print(json.dumps(data, indent=2, ensure_ascii=False))
 
 
@@ -38,11 +38,9 @@ def generate_random_payload() -> Dict[str, Any]:
         Dict[str, Any]: A valid payload dictionary with datetime, datalogger UUID,
                         geolocation, and one or several measurements.
     """
-    # Randomly select a datalogger and get its location
     datalogger_id: str = random.choice(list(DATALOGGERS.keys()))
     location: Dict[str, float] = copy.deepcopy(DATALOGGERS[datalogger_id])
 
-    # Generate a datetime within the last 5 days
     base_time: datetime = now() - timedelta(days=5)
     at: datetime = base_time + timedelta(
         days=random.randint(0, 4),
@@ -52,16 +50,13 @@ def generate_random_payload() -> Dict[str, Any]:
     )
     at_str: str = at.isoformat(timespec="seconds")
 
-    # Randomly choose 1 or 3 labels to generate measurements for
     num_measures: int = random.choice([1, 3])
     chosen_labels: List[str] = random.sample(LABELS, num_measures)
 
     measurements: List[Dict[str, Any]] = [
-        {"label": label, "value": MEASUREMENT_RANGES[label]()}
-        for label in chosen_labels
+        {"label": label, "value": MEASUREMENT_RANGES[label]()} for label in chosen_labels
     ]
 
-    # Build and return the complete payload
     payload: Dict[str, Any] = {
         "at": at_str,
         "datalogger": datalogger_id,
@@ -73,11 +68,11 @@ def generate_random_payload() -> Dict[str, Any]:
 
 
 def aggregate(measurements: List[Measurement], span: str) -> List[Dict[str, Any]]:
-    aggregation = defaultdict(list)
-
+    aggregation: DefaultDict[Tuple[str, datetime], List[float]] = defaultdict(list)
+    
     for m in measurements:
-        label = m.label
-        naive_dt = make_naive(m.at)
+        label = str(m.label)
+        naive_dt = make_naive(m.at) # type: ignore
 
         if span == "hour":
             time_slot = naive_dt.replace(minute=0, second=0, microsecond=0)
@@ -86,16 +81,16 @@ def aggregate(measurements: List[Measurement], span: str) -> List[Dict[str, Any]
         else:
             raise ValueError(f"Unsupported span value: {span}")
 
-        aggregation[(label, time_slot)].append(m.value)
+        aggregation[(label, time_slot)].append(m.value) # type: ignore[arg-type]
 
-    expected = []
+    results: List[Dict[str, Any]] = []
     for (label, time_slot), values in aggregation.items():
         if label == "rain":
             value = sum(values)
         else:
             value = sum(values) / len(values)
-        expected.append(
+        results.append(
             {"label": label, "time_slot": time_slot.isoformat(), "value": value}
         )
 
-    return expected
+    return results

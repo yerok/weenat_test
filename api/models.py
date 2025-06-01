@@ -1,4 +1,5 @@
 import uuid
+from typing import List, Tuple
 
 from django.db import models
 
@@ -9,7 +10,7 @@ class UUIDModel(models.Model):
     All models inheriting this get a unique UUID automatically.
     """
 
-    id = models.UUIDField(
+    id =  models.UUIDField(
         default=uuid.uuid4, editable=False, unique=True, primary_key=True
     )
 
@@ -23,27 +24,27 @@ class Datalogger(UUIDModel):
     """
 
     lat = models.FloatField(help_text="Latitude in float representation.")
-    lng = models.FloatField(help_text="Latitude in float representation.")
+    lng = models.FloatField(help_text="Longitude in float representation.")  # corrigé "Latitude" en "Longitude"
 
 
 class Measurement(models.Model):
     """
-    Represents a single measurement attached to a DataRecord.
+    Represents a single measurement attached to a datalogger.
     For example: temperature, humidity, rain.
     """
 
-    LABEL_CHOICES = [
+    LABEL_CHOICES: List[Tuple[str, str]] = [
         ("temp", "Temperature"),
         ("rain", "Rain"),
         ("hum", "Humidity"),
     ]
 
     label = models.CharField(max_length=20, choices=LABEL_CHOICES)
-    at = models.DateTimeField(
+    at =  models.DateTimeField(
         help_text="Timestamp when the metric is recorded (ISO-8601 format)."
     )
-    value = models.FloatField()
+    value =  models.FloatField()
     datalogger = models.ForeignKey(Datalogger, on_delete=models.CASCADE)
 
-    def __str__(self):
-        return f"{self.label}: {self.value}"
+    def __str__(self) -> str:
+        return f"{self.label}: {self.value}" 

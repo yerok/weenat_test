@@ -1,3 +1,5 @@
+from datetime import datetime
+from typing import Any, Dict, List
 from uuid import UUID
 
 from django.utils.timezone import now
@@ -6,28 +8,29 @@ from rest_framework import serializers
 from .models import Datalogger, Measurement
 
 
-class LocationSerializer(serializers.Serializer):
+class LocationSerializer(serializers.Serializer[Any]):
     lat = serializers.FloatField()
     lng = serializers.FloatField()
 
-    def validate_lat(self, value):
+    def validate_lat(self, value: float) -> float:
         if not -90 <= value <= 90:
             raise serializers.ValidationError("Latitude must be between -90 and 90.")
         return value
 
-    def validate_lng(self, value):
+    def validate_lng(self, value: float) -> float:
         if not -180 <= value <= 180:
             raise serializers.ValidationError("Longitude must be between -180 and 180.")
         return value
 
 
-class MeasurementSerializer(serializers.Serializer):
-    label = serializers.ChoiceField(choices=[c[0] for c in Measurement.LABEL_CHOICES])
+class MeasurementSerializer(serializers.Serializer[Any]):
+    measurement_label = serializers.ChoiceField(choices=[c[0] for c in Measurement.LABEL_CHOICES])
     value = serializers.FloatField()
 
-    def validate(self, data):
-        label = data["label"]
-        value = data["value"]
+    def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
+    # def validate(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        label = attrs["label"]
+        value = attrs["value"]
 
         if label == "temp":
             if not (-20 <= value <= 40):
@@ -59,10 +62,10 @@ class MeasurementSerializer(serializers.Serializer):
                     {"value": "Rain must be in steps of 0.2."}
                 )
 
-        return data
+        return attrs
 
 
-class DataRecordRequestSerializer(serializers.Serializer):
+class DataRecordRequestSerializer(serializers.Serializer[Any]):
     datalogger = serializers.CharField()
     location = LocationSerializer()
     measurements = MeasurementSerializer(many=True, required=True, allow_null=False)
@@ -70,7 +73,7 @@ class DataRecordRequestSerializer(serializers.Serializer):
 
     # if we use serializers.UUIDField() it would convert an int for instane to an UUID,
     # we do not want that so we check that it's a correct uuid
-    def validate_datalogger(self, value):
+    def validate_datalogger(self, value: str) -> str:
         try:
             return str(UUID(value))  # On vérifie que c'est bien une UUID
         except ValueError as err:
@@ -78,31 +81,31 @@ class DataRecordRequestSerializer(serializers.Serializer):
                 "'datalogger' field must be a valid UUID."
             ) from err
 
-    def validate_measurements(self, value):
+    def validate_measurements(self, value: List[Measurement]) -> List[Measurement]:
         if not value:
             raise serializers.ValidationError("Measurements cannot be empty.")
         return value
 
-    def validate_at(self, value):
+    def validate_at(self, value: datetime) -> datetime:
         if value > now():
             raise serializers.ValidationError(
                 "The 'at' datetime cannot be in the future."
             )
         return value
 
-    def create(self, validated_data):
+    def create(self, validated_data: Dict[str, Any]) -> Dict[str, Any]:
         location_data = validated_data["location"]
         measurement_data = validated_data["measurements"]
-
-        datalogger, created = Datalogger.objects.get_or_create(
-            # uuid=uuid,
+        
+        datalogger: Datalogger
+        datalogger, _ = Datalogger.objects.get_or_create(
             defaults={
                 "location_lat": location_data["lat"],
                 "location_lng": location_data["lng"],
             }
         )
 
-        measurement_instances = []
+        measurement_instances : List[Measurement] = []
         for m in measurement_data:
             measurement = Measurement.objects.create(
                 datalogger=datalogger, value=m["value"], at=m["at"]
@@ -112,8 +115,10 @@ class DataRecordRequestSerializer(serializers.Serializer):
         return {
             "datalogger": str(datalogger.id),
             "location": {
-                "lat": datalogger.location_lat,
-                "lng": datalogger.location_lng,
+                "lat": datalogger.lat,
+                # "lat": datalogger.location_lat,
+                "lng": datalogger.lng,
+                # "lng": datalogger.location_lng,
             },
             "measurements": measurement_data,
         }
@@ -122,12 +127,12 @@ class DataRecordRequestSerializer(serializers.Serializer):
 class DataRecordResponseSerializer(serializers.ModelSerializer):
     measured_at = serializers.DateTimeField(source="at")
 
-    class Meta:
+    class Meta: 
         model = Measurement
         fields = ["label", "measured_at", "value"]
 
 
-class DataRecordAggregateResponseSerializer(serializers.Serializer):
+class DataRecordAggregateResponseSerializer(serializers.Serializer): 
     label = serializers.CharField()
     time_slot = serializers.DateTimeField()
     value = serializers.FloatField()
