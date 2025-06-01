@@ -24,7 +24,7 @@ class Datalogger(UUIDModel):
     """
 
     lat = models.FloatField(help_text="Latitude in float representation.")
-    lng = models.FloatField(help_text="Longitude in float representation.")  # corrigé "Latitude" en "Longitude"
+    lng = models.FloatField(help_text="Longitude in float representation.")  
 
 
 class Measurement(models.Model):

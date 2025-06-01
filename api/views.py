@@ -1,10 +1,14 @@
-from django.db.models import Avg, Sum
+from typing import Any
+from django.db.models import Avg, Sum, QuerySet
 from django.db.models.functions import TruncDay, TruncHour
+from django.db.models.functions.datetime import TruncBase
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
+from rest_framework.request import Request
+
 from rest_framework.views import APIView
 
 from api.filters import MeasurementFilter
@@ -17,9 +21,8 @@ from .serializers import (
     SummaryQueryParamsSerializer,
 )
 
-
 class IngestDataView(APIView):
-    def post(self, request, *args, **kwargs):
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         request_serializer = DataRecordRequestSerializer(data=request.data)
 
         if not request_serializer.is_valid():
@@ -27,33 +30,50 @@ class IngestDataView(APIView):
                 request_serializer.errors, status=status.HTTP_400_BAD_REQUEST
             )
 
-        validated_data = request_serializer.validated_data
-        datalogger_id = validated_data["datalogger"]
-
-        measurements_data = validated_data["measurements"]
-        at = validated_data["at"]
-        location = validated_data["location"]
-
-        datalogger, _ = Datalogger.objects.get_or_create(
-            id=datalogger_id, lat=location["lat"], lng=location["lng"]
-        )
-
-        # Update location if needed
-        datalogger.lat = validated_data["location"]["lat"]
-        datalogger.lng = validated_data["location"]["lng"]
-        datalogger.save()
-
-        created_measurements = [
-            Measurement.objects.create(
-                datalogger=datalogger, label=m["label"], value=m["value"], at=at
-            )
-            for m in measurements_data
-        ]
+        # Appelle create() du serializer
+        result = request_serializer.save()  # <== appelle .create(validated_data)
 
         response_serializer = DataRecordResponseSerializer(
-            created_measurements, many=True
+            result["measurements"], many=True
         )
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+    
+# class IngestDataView(APIView):
+#     def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+#         request_serializer = DataRecordRequestSerializer(data=request.data)
+
+#         if not request_serializer.is_valid():
+#             return Response(
+#                 request_serializer.errors, status=status.HTTP_400_BAD_REQUEST
+#             )
+
+#         validated_data = request_serializer.validated_data
+#         datalogger_id = validated_data["datalogger"]
+
+#         measurements_data = validated_data["measurements"]
+#         at = validated_data["at"]
+#         location = validated_data["location"]
+
+#         datalogger, _ = Datalogger.objects.get_or_create(
+#             id=datalogger_id, lat=location["lat"], lng=location["lng"]
+#         )
+
+#         # Update location if needed
+#         datalogger.lat = validated_data["location"]["lat"]
+#         datalogger.lng = validated_data["location"]["lng"]
+#         datalogger.save()
+
+#         created_measurements = [
+#             Measurement.objects.create(
+#                 datalogger=datalogger, label=m["label"], value=m["value"], at=at
+#             )
+#             for m in measurements_data
+#         ]
+
+#         response_serializer = DataRecordResponseSerializer(
+#             created_measurements, many=True
+#         )
+#         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 
 # we use ListAPIView because we use directly the model - we can use django_filters
@@ -64,15 +84,16 @@ class FetchRawDataView(ListAPIView):
     filter_backends = [DjangoFilterBackend]
     filterset_class = MeasurementFilter
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet :
         datalogger_id = self.request.query_params.get("datalogger")
         if not datalogger_id:
             raise ValidationError({"datalogger": "This query parameter is required."})
 
-
+        return Measurement.objects.filter(datalogger_id=datalogger_id)
+    
 # custom view - we need to create our own filter and to serialize query params
 class SummaryView(APIView):
-    def get(self, request, *args, **kwargs):
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         query_params_serializer = SummaryQueryParamsSerializer(
             data=request.query_params
         )
@@ -111,7 +132,10 @@ class SummaryView(APIView):
             raw_serializer = DataRecordResponseSerializer(measurements, many=True)
             return Response(raw_serializer.data)
 
+
+
         elif span in ["day", "hour"]:
+            trunc_func: TruncBase
             if span == "day":
                 trunc_func = TruncDay("at")
             else:

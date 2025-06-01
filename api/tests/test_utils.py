@@ -28,8 +28,8 @@ DATALOGGERS: Dict[str, Dict[str, float]] = {
 def print_json(data: Any) -> None:
     print(json.dumps(data, indent=2, ensure_ascii=False))
 
-
-def generate_random_payload() -> Dict[str, Any]:
+Payload = Dict[str, Any]
+def generate_random_payload() -> Payload:
     """
     Generates a randomized payload matching the expected structure
     for the /api/ingest/ or /api/data/ endpoints.

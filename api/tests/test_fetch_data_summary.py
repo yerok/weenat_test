@@ -1,3 +1,4 @@
+from typing import Optional
 from django.core.management import call_command
 from django.urls import reverse
 from rest_framework.test import APITestCase
@@ -19,11 +20,14 @@ class FetchDataSummaryTest(APITestCase):
         """
         cls.url = reverse("api_fetch_data_aggregates")
         call_command("populate_db", dataloggers=1, measurements=50)
-        cls.datalogger = Datalogger.objects.first()
+        datalogger = Datalogger.objects.first()
+        
+        if datalogger is None:
+            raise RuntimeError("populate_db n'a pas créé de Datalogger, arrêt des tests.")
+        cls.datalogger = datalogger
         cls.measurements = list(
             Measurement.objects.filter(datalogger=cls.datalogger).order_by("at")
         )
-        assert cls.datalogger is not None
 
     def test_summary_filter_without_datalogger(self) -> None:
         response = self.client.get(self.url)

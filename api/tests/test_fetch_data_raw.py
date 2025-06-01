@@ -1,5 +1,5 @@
-from datetime import timedelta
-from typing import List
+from datetime import datetime, timedelta
+from typing import List, cast
 
 from django.core.management import call_command
 from django.urls import reverse
@@ -22,10 +22,14 @@ class FetchDataRawTest(APITestCase):
         """
         cls.url = reverse("api_fetch_data_raw")
         call_command("populate_db", dataloggers=1, measurements=50)
-        cls.datalogger = Datalogger.objects.first()
-        cls.measurements = list(Measurement.objects.order_by("at"))
-
-        assert cls.datalogger is not None
+        datalogger = Datalogger.objects.first()
+        
+        if datalogger is None:
+            raise RuntimeError("populate_db n'a pas créé de Datalogger, arrêt des tests.")
+        cls.datalogger = datalogger
+        cls.measurements = list(
+            Measurement.objects.filter(datalogger=cls.datalogger).order_by("at")
+        )
 
     def test_filter_without_datalogger(self) -> None:
         response = self.client.get(self.url)
@@ -39,15 +43,17 @@ class FetchDataRawTest(APITestCase):
     def test_filter_by_datalogger_and_date_range(self) -> None:
         # We arbitrarily pick 2 values representing the time range we will be testing
         # They are sorted by time so we know how many values we should have
-        since = self.measurements[8].at.isoformat()
-        before = self.measurements[22].at.isoformat()
-
-        expected = [
-            m
-            for m in self.measurements
-            if since <= m.at.isoformat() <= before
-            and m.datalogger_id == self.datalogger.id
-        ]
+        since = cast(datetime, self.measurements[8].at).isoformat()
+        before = cast(datetime, self.measurements[22].at).isoformat()
+        
+        expected = []
+        for m in self.measurements:
+            at = cast(datetime, m.at).isoformat()
+            
+            # Pylance error because datalogguer_id doesn't exist yet, we do not ignore it because Mypy will tell us that's useless
+            if since <= at <= before and m.datalogger_id == self.datalogger.id: 
+                expected.append(m)
+        
         response = self.client.get(
             self.url,
             {"datalogger": str(self.datalogger.id), "since": since, "before": before},

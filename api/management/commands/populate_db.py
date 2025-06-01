@@ -17,9 +17,19 @@ RANGES = {
 
 
 class Command(BaseCommand):
-    help = "Populate the database with random dataloggers and measurements"
+    """
+    Django management command to populate the database with
+    random dataloggers and associated measurements.
+    """
 
     def add_arguments(self, parser: Any) -> None:
+        """
+        Add command-line arguments to specify the number of dataloggers
+        and measurements per datalogger to create.
+
+        Args:
+            parser: The argument parser instance.
+        """
         parser.add_argument(
             "--dataloggers", type=int, default=3, help="Number of dataloggers"
         )
@@ -28,6 +38,14 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args: Any, **options: Any) -> None:
+        """
+        Create specified numbers of dataloggers and measurements.
+        Measurement timestamps are randomly distributed over the last 5 days.
+
+        Args:
+            *args: Additional positional arguments.
+            **options: Command options, expects 'dataloggers' and 'measurements'.
+        """
         num_dataloggers = options["dataloggers"]
         num_measurements = options["measurements"]
 
@@ -55,7 +73,7 @@ class Command(BaseCommand):
                 label = random.choice(LABELS)
                 value = RANGES[label]()
 
-                # Passer l'objet datetime directement, pas sa chaîne ISO
+                # Store the datetime object directly, not its ISO string
                 Measurement.objects.create(
                     datalogger=datalogger, label=label, value=value, at=at
                 )

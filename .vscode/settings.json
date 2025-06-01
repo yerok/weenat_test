@@ -7,8 +7,9 @@
     "--load-plugins=pylint_django"
   ],
   "python.analysis.extraPaths": [
-    "./"
+    "./", "./api"
   ],
+  "python.analysis.autoImportCompletions": true,
   "python.languageServer": "Pylance",
-  "python.linting.mypyEnabled": true
+
 }

@@ -8,7 +8,11 @@ from rest_framework import serializers
 from .models import Datalogger, Measurement
 
 
-class LocationSerializer(serializers.Serializer[Any]):
+class LocationSerializer(serializers.Serializer):
+    """
+    Serializer for a geographic location with latitude and longitude.
+    Ensures latitude is between -90 and 90, and longitude between -180 and 180.
+    """
     lat = serializers.FloatField()
     lng = serializers.FloatField()
 
@@ -23,12 +27,15 @@ class LocationSerializer(serializers.Serializer[Any]):
         return value
 
 
-class MeasurementSerializer(serializers.Serializer[Any]):
-    measurement_label = serializers.ChoiceField(choices=[c[0] for c in Measurement.LABEL_CHOICES])
+class MeasurementSerializer(serializers.Serializer):
+    """
+    Serializer for individual measurements, validating the value
+    according to the label type constraints.
+    """
+    label = serializers.ChoiceField(choices=[c[0] for c in Measurement.LABEL_CHOICES])
     value = serializers.FloatField()
 
     def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
-    # def validate(self, data: Dict[str, Any]) -> Dict[str, Any]:
         label = attrs["label"]
         value = attrs["value"]
 
@@ -65,17 +72,29 @@ class MeasurementSerializer(serializers.Serializer[Any]):
         return attrs
 
 
-class DataRecordRequestSerializer(serializers.Serializer[Any]):
+class DataRecordRequestSerializer(serializers.Serializer):
+    """
+    Serializer for incoming data records submitted by clients.
+
+    Validates:
+      - 'datalogger' as a valid UUID string,
+      - 'location' via LocationSerializer,
+      - 'measurements' list via MeasurementSerializer,
+      - 'at' datetime ensuring it is not in the future.
+
+    Also implements a 'create' method to persist the datalogger
+    (creating if missing) and associated measurements in the DB.
+    """
     datalogger = serializers.CharField()
     location = LocationSerializer()
     measurements = MeasurementSerializer(many=True, required=True, allow_null=False)
     at = serializers.DateTimeField()
 
-    # if we use serializers.UUIDField() it would convert an int for instane to an UUID,
+    # if we use serializers.UUIDField() it would convert an int for instance to an UUID,
     # we do not want that so we check that it's a correct uuid
     def validate_datalogger(self, value: str) -> str:
         try:
-            return str(UUID(value))  # On vérifie que c'est bien une UUID
+            return str(UUID(value))  
         except ValueError as err:
             raise serializers.ValidationError(
                 "'datalogger' field must be a valid UUID."
@@ -100,15 +119,15 @@ class DataRecordRequestSerializer(serializers.Serializer[Any]):
         datalogger: Datalogger
         datalogger, _ = Datalogger.objects.get_or_create(
             defaults={
-                "location_lat": location_data["lat"],
-                "location_lng": location_data["lng"],
+                "lat": location_data["lat"],
+                "lng": location_data["lng"],
             }
         )
 
         measurement_instances : List[Measurement] = []
         for m in measurement_data:
             measurement = Measurement.objects.create(
-                datalogger=datalogger, value=m["value"], at=m["at"]
+                datalogger=datalogger, label=m["label"], value=m["value"], at=m["at"]
             )
             measurement_instances.append(measurement)
 
@@ -116,15 +135,16 @@ class DataRecordRequestSerializer(serializers.Serializer[Any]):
             "datalogger": str(datalogger.id),
             "location": {
                 "lat": datalogger.lat,
-                # "lat": datalogger.location_lat,
                 "lng": datalogger.lng,
-                # "lng": datalogger.location_lng,
             },
             "measurements": measurement_data,
         }
 
 
 class DataRecordResponseSerializer(serializers.ModelSerializer):
+    """
+    Serializer for sending back measurement data in responses,
+    """
     measured_at = serializers.DateTimeField(source="at")
 
     class Meta: 
@@ -133,6 +153,14 @@ class DataRecordResponseSerializer(serializers.ModelSerializer):
 
 
 class DataRecordAggregateResponseSerializer(serializers.Serializer): 
+    """
+    Serializer for aggregated measurement data in response to summary queries.
+
+    Fields:
+      - label: measurement label,
+      - time_slot: datetime for the aggregation period,
+      - value: aggregated value (average or sum according to the label).
+    """
     label = serializers.CharField()
     time_slot = serializers.DateTimeField()
     value = serializers.FloatField()
@@ -140,6 +168,11 @@ class DataRecordAggregateResponseSerializer(serializers.Serializer):
 
 # We need a serializer for /api/summary because the span is not handled natively with APIView / DRF / django_filters /
 class SummaryQueryParamsSerializer(serializers.Serializer):
+    """
+    Serializer for query parameters accepted by the '/api/summary' endpoint.
+
+    Handles optional 'since', 'before', 'span' and required 'datalogger' UUID.
+    """
     since = serializers.DateTimeField(required=False)
     before = serializers.DateTimeField(required=False)
     datalogger = serializers.UUIDField(required=True)
