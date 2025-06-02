@@ -24,57 +24,19 @@ from .serializers import (
 class IngestDataView(APIView):
     def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         request_serializer = DataRecordRequestSerializer(data=request.data)
-
+        
         if not request_serializer.is_valid():
             return Response(
                 request_serializer.errors, status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Appelle create() du serializer
-        result = request_serializer.save()  # <== appelle .create(validated_data)
+        result = request_serializer.save() 
 
         response_serializer = DataRecordResponseSerializer(
             result["measurements"], many=True
         )
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
     
-# class IngestDataView(APIView):
-#     def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-#         request_serializer = DataRecordRequestSerializer(data=request.data)
-
-#         if not request_serializer.is_valid():
-#             return Response(
-#                 request_serializer.errors, status=status.HTTP_400_BAD_REQUEST
-#             )
-
-#         validated_data = request_serializer.validated_data
-#         datalogger_id = validated_data["datalogger"]
-
-#         measurements_data = validated_data["measurements"]
-#         at = validated_data["at"]
-#         location = validated_data["location"]
-
-#         datalogger, _ = Datalogger.objects.get_or_create(
-#             id=datalogger_id, lat=location["lat"], lng=location["lng"]
-#         )
-
-#         # Update location if needed
-#         datalogger.lat = validated_data["location"]["lat"]
-#         datalogger.lng = validated_data["location"]["lng"]
-#         datalogger.save()
-
-#         created_measurements = [
-#             Measurement.objects.create(
-#                 datalogger=datalogger, label=m["label"], value=m["value"], at=at
-#             )
-#             for m in measurements_data
-#         ]
-
-#         response_serializer = DataRecordResponseSerializer(
-#             created_measurements, many=True
-#         )
-#         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
 
 # we use ListAPIView because we use directly the model - we can use django_filters
 # no need to create custom filters or to serialize query params

@@ -3,9 +3,11 @@ from typing import Any, Dict, List
 from uuid import UUID
 
 from django.utils.timezone import now
+from django.db import transaction
 from rest_framework import serializers
 
 from .models import Datalogger, Measurement
+from .tests.test_utils import print_json
 
 
 class LocationSerializer(serializers.Serializer):
@@ -111,13 +113,16 @@ class DataRecordRequestSerializer(serializers.Serializer):
                 "The 'at' datetime cannot be in the future."
             )
         return value
-
+    
+    @transaction.atomic
     def create(self, validated_data: Dict[str, Any]) -> Dict[str, Any]:
         location_data = validated_data["location"]
         measurement_data = validated_data["measurements"]
+        at = validated_data["at"]
         
         datalogger: Datalogger
         datalogger, _ = Datalogger.objects.get_or_create(
+            id=validated_data["datalogger"],
             defaults={
                 "lat": location_data["lat"],
                 "lng": location_data["lng"],
@@ -127,7 +132,7 @@ class DataRecordRequestSerializer(serializers.Serializer):
         measurement_instances : List[Measurement] = []
         for m in measurement_data:
             measurement = Measurement.objects.create(
-                datalogger=datalogger, label=m["label"], value=m["value"], at=m["at"]
+                datalogger=datalogger, label=m["label"], value=m["value"], at=at
             )
             measurement_instances.append(measurement)
 
@@ -137,7 +142,7 @@ class DataRecordRequestSerializer(serializers.Serializer):
                 "lat": datalogger.lat,
                 "lng": datalogger.lng,
             },
-            "measurements": measurement_data,
+            "measurements": measurement_instances,
         }
 
 

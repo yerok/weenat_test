@@ -27,6 +27,7 @@ class IngestEndPointTest(APITestCase):
             measurements = Measurement.objects.filter(
                 datalogger=datalogger_id
             ).order_by("label")
+            
             self.assertEqual(measurements.count(), expected_data_count)
 
             for measurement, expected in zip(measurements, expected_data):
