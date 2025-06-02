@@ -68,6 +68,24 @@ def generate_random_payload() -> Payload:
 
 
 def aggregate(measurements: List[Measurement], span: str) -> List[Dict[str, Any]]:
+    """
+    Aggregates a list of Measurement instances by time slot and label.
+
+    If the label is "rain", values are summed. For other labels, values are averaged.
+    
+    Args:
+        measurements: A list of Measurement objects to aggregate.
+        span: A string indicating the aggregation span. Can be "hour" or "day".
+
+    Returns:
+        A list of dictionaries containing aggregated results, each with:
+        - "label": the measurement label,
+        - "time_slot": the ISO-formatted datetime of the slot,
+        - "value": the aggregated value.
+    
+    Raises:
+        ValueError: If the span is not one of the supported values.
+    """
     aggregation: DefaultDict[Tuple[str, datetime], List[float]] = defaultdict(list)
     
     for m in measurements:

@@ -22,6 +22,12 @@ from .serializers import (
 )
 
 class IngestDataView(APIView):
+    """
+    This view implements the POST /api/ingest endpoint to ingest new data records into the system.
+
+    Accepts a payload validated by DataRecordRequestSerializer and saves
+    the related measurements.
+    """
     def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         request_serializer = DataRecordRequestSerializer(data=request.data)
         
@@ -41,6 +47,11 @@ class IngestDataView(APIView):
 # we use ListAPIView because we use directly the model - we can use django_filters
 # no need to create custom filters or to serialize query params
 class FetchRawDataView(ListAPIView):
+    """
+    This view implements the GET /api/data endpoint to fetch raw measurements filtered by query parameters.
+
+    Uses DjangoFilterBackend and a MeasurementFilter to filter by datalogger and  date range
+    """
     queryset = Measurement.objects.all()
     serializer_class = DataRecordResponseSerializer
     filter_backends = [DjangoFilterBackend]
@@ -55,6 +66,12 @@ class FetchRawDataView(ListAPIView):
     
 # custom view - we need to create our own filter and to serialize query params
 class SummaryView(APIView):
+    """
+    This view implements the GET /api/summary endpoint to summarize measurement data over a time span.
+
+    Supports optional filtering via 'since', 'before', and aggregation by 'span' ("hour" or "day").
+    Aggregates using average for all labels except "rain", which is summed.
+    """
     def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         query_params_serializer = SummaryQueryParamsSerializer(
             data=request.query_params
@@ -89,44 +106,37 @@ class SummaryView(APIView):
             measurements = measurements.filter(at__lte=before)
 
         if not span:
-            from .serializers import DataRecordResponseSerializer
+            serializer = DataRecordResponseSerializer(measurements, many=True)
+            return Response(serializer.data)
 
-            raw_serializer = DataRecordResponseSerializer(measurements, many=True)
-            return Response(raw_serializer.data)
+        if span not in ["day", "hour"]:
+            return Response({"detail": "Invalid span value."}, status=400)
 
+        trunc_func: TruncBase = TruncDay("at") if span == "day" else TruncHour("at")
 
+        aggregation = []
+        labels = measurements.values_list("label", flat=True).distinct()
 
-        elif span in ["day", "hour"]:
-            trunc_func: TruncBase
-            if span == "day":
-                trunc_func = TruncDay("at")
+        for label in labels:
+            subset = measurements.filter(label=label)
+            annotated = subset.annotate(time_slot=trunc_func).values("time_slot")
+
+            if label == "rain":
+                aggregated_data = annotated.annotate(value=Sum("value"))
             else:
-                trunc_func = TruncHour("at")
+                aggregated_data = annotated.annotate(value=Avg("value"))
 
-            aggregation = []
-            labels = measurements.values_list("label", flat=True).distinct()
+            for item in aggregated_data:
+                aggregation.append(
+                    {
+                        "label": label,
+                        "time_slot": item["time_slot"],
+                        "value": item["value"],
+                    }
+                )
 
-            for label in labels:
-                subset = measurements.filter(label=label)
-                annotated = subset.annotate(time_slot=trunc_func).values("time_slot")
+        response_serializer = DataRecordAggregateResponseSerializer(
+            aggregation, many=True
+        )
+        return Response(response_serializer.data)
 
-                if label == "rain":
-                    aggregated_data = annotated.annotate(value=Sum("value"))
-                else:
-                    aggregated_data = annotated.annotate(value=Avg("value"))
-
-                for item in aggregated_data:
-                    aggregation.append(
-                        {
-                            "label": label,
-                            "time_slot": item["time_slot"],
-                            "value": item["value"],
-                        }
-                    )
-
-            response_serializer = DataRecordAggregateResponseSerializer(
-                aggregation, many=True
-            )
-            return Response(response_serializer.data)
-
-        return Response({"Invalid span value"}, status=400)

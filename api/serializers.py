@@ -7,7 +7,6 @@ from django.db import transaction
 from rest_framework import serializers
 
 from .models import Datalogger, Measurement
-from .tests.test_utils import print_json
 
 
 class LocationSerializer(serializers.Serializer):
