@@ -23,9 +23,11 @@ class FetchDataRawTest(APITestCase):
         cls.url = reverse("api_fetch_data_raw")
         call_command("populate_db", dataloggers=1, measurements=50)
         datalogger = Datalogger.objects.first()
-        
+
         if datalogger is None:
-            raise RuntimeError("populate_db n'a pas créé de Datalogger, arrêt des tests.")
+            raise RuntimeError(
+                "populate_db n'a pas créé de Datalogger, arrêt des tests."
+            )
         cls.datalogger = datalogger
         cls.measurements = list(
             Measurement.objects.filter(datalogger=cls.datalogger).order_by("at")
@@ -45,15 +47,15 @@ class FetchDataRawTest(APITestCase):
         # They are sorted by time so we know how many values we should have
         since = cast(datetime, self.measurements[8].at).isoformat()
         before = cast(datetime, self.measurements[22].at).isoformat()
-        
+
         expected = []
         for m in self.measurements:
             at = cast(datetime, m.at).isoformat()
-            
+
             # Pylance error because datalogguer_id doesn't exist yet, we do not ignore it because Mypy will tell us that's useless
-            if since <= at <= before and m.datalogger_id == self.datalogger.id: 
+            if since <= at <= before and m.datalogger_id == self.datalogger.id:
                 expected.append(m)
-        
+
         response = self.client.get(
             self.url,
             {"datalogger": str(self.datalogger.id), "since": since, "before": before},

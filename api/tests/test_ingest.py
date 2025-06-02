@@ -2,11 +2,12 @@ from datetime import timedelta
 
 from django.urls import reverse
 from django.utils.timezone import now
-from rest_framework.test import APITestCase, APIClient
 from rest_framework.response import Response
+from rest_framework.test import APIClient, APITestCase
 
 from api.models import Measurement
-from .test_utils import generate_random_payload, Payload, print_json
+
+from .test_utils import Payload, generate_random_payload
 
 
 class IngestEndPointTest(APITestCase):
@@ -22,12 +23,12 @@ class IngestEndPointTest(APITestCase):
             datalogger_id = payload["datalogger"]
             expected_data = sorted(payload["measurements"], key=lambda m: m["label"])
             expected_data_count = len(expected_data)
-            
+
             self.assertEqual(response.status_code, 201)
             measurements = Measurement.objects.filter(
                 datalogger=datalogger_id
             ).order_by("label")
-            
+
             self.assertEqual(measurements.count(), expected_data_count)
 
             for measurement, expected in zip(measurements, expected_data):

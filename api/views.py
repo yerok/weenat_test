@@ -1,14 +1,14 @@
 from typing import Any
-from django.db.models import Avg, Sum, QuerySet
+
+from django.db.models import Avg, QuerySet, Sum
 from django.db.models.functions import TruncDay, TruncHour
 from django.db.models.functions.datetime import TruncBase
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import ListAPIView
-from rest_framework.response import Response
 from rest_framework.request import Request
-
+from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.filters import MeasurementFilter
@@ -21,6 +21,7 @@ from .serializers import (
     SummaryQueryParamsSerializer,
 )
 
+
 class IngestDataView(APIView):
     """
     This view implements the POST /api/ingest endpoint to ingest new data records into the system.
@@ -28,21 +29,22 @@ class IngestDataView(APIView):
     Accepts a payload validated by DataRecordRequestSerializer and saves
     the related measurements.
     """
+
     def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         request_serializer = DataRecordRequestSerializer(data=request.data)
-        
+
         if not request_serializer.is_valid():
             return Response(
                 request_serializer.errors, status=status.HTTP_400_BAD_REQUEST
             )
 
-        result = request_serializer.save() 
+        result = request_serializer.save()
 
         response_serializer = DataRecordResponseSerializer(
             result["measurements"], many=True
         )
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-    
+
 
 # we use ListAPIView because we use directly the model - we can use django_filters
 # no need to create custom filters or to serialize query params
@@ -52,18 +54,20 @@ class FetchRawDataView(ListAPIView):
 
     Uses DjangoFilterBackend and a MeasurementFilter to filter by datalogger and  date range
     """
+
     queryset = Measurement.objects.all()
     serializer_class = DataRecordResponseSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_class = MeasurementFilter
 
-    def get_queryset(self) -> QuerySet :
+    def get_queryset(self) -> QuerySet:
         datalogger_id = self.request.query_params.get("datalogger")
         if not datalogger_id:
             raise ValidationError({"datalogger": "This query parameter is required."})
 
         return Measurement.objects.filter(datalogger_id=datalogger_id)
-    
+
+
 # custom view - we need to create our own filter and to serialize query params
 class SummaryView(APIView):
     """
@@ -72,6 +76,7 @@ class SummaryView(APIView):
     Supports optional filtering via 'since', 'before', and aggregation by 'span' ("hour" or "day").
     Aggregates using average for all labels except "rain", which is summed.
     """
+
     def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         query_params_serializer = SummaryQueryParamsSerializer(
             data=request.query_params
@@ -139,4 +144,3 @@ class SummaryView(APIView):
             aggregation, many=True
         )
         return Response(response_serializer.data)
-

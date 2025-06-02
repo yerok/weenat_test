@@ -8,8 +8,8 @@ class MeasurementFilter(filters.FilterSet):
     FilterSet for filtering raw Measurement data based on date range
     and datalogger UUID.
 
-    This filter is used exclusively by the '/api/data' endpoint 
-    
+    This filter is used exclusively by the '/api/data' endpoint
+
     It leverages django_filters library to provide these filtering capabilities.
     """
 

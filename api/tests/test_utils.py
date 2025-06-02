@@ -28,7 +28,10 @@ DATALOGGERS: Dict[str, Dict[str, float]] = {
 def print_json(data: Any) -> None:
     print(json.dumps(data, indent=2, ensure_ascii=False))
 
+
 Payload = Dict[str, Any]
+
+
 def generate_random_payload() -> Payload:
     """
     Generates a randomized payload matching the expected structure
@@ -54,7 +57,8 @@ def generate_random_payload() -> Payload:
     chosen_labels: List[str] = random.sample(LABELS, num_measures)
 
     measurements: List[Dict[str, Any]] = [
-        {"label": label, "value": MEASUREMENT_RANGES[label]()} for label in chosen_labels
+        {"label": label, "value": MEASUREMENT_RANGES[label]()}
+        for label in chosen_labels
     ]
 
     payload: Dict[str, Any] = {
@@ -72,7 +76,7 @@ def aggregate(measurements: List[Measurement], span: str) -> List[Dict[str, Any]
     Aggregates a list of Measurement instances by time slot and label.
 
     If the label is "rain", values are summed. For other labels, values are averaged.
-    
+
     Args:
         measurements: A list of Measurement objects to aggregate.
         span: A string indicating the aggregation span. Can be "hour" or "day".
@@ -82,15 +86,15 @@ def aggregate(measurements: List[Measurement], span: str) -> List[Dict[str, Any]
         - "label": the measurement label,
         - "time_slot": the ISO-formatted datetime of the slot,
         - "value": the aggregated value.
-    
+
     Raises:
         ValueError: If the span is not one of the supported values.
     """
     aggregation: DefaultDict[Tuple[str, datetime], List[float]] = defaultdict(list)
-    
+
     for m in measurements:
         label = str(m.label)
-        naive_dt = make_naive(m.at) # type: ignore
+        naive_dt = make_naive(m.at)  # type: ignore
 
         if span == "hour":
             time_slot = naive_dt.replace(minute=0, second=0, microsecond=0)
@@ -99,7 +103,7 @@ def aggregate(measurements: List[Measurement], span: str) -> List[Dict[str, Any]
         else:
             raise ValueError(f"Unsupported span value: {span}")
 
-        aggregation[(label, time_slot)].append(m.value) # type: ignore[arg-type]
+        aggregation[(label, time_slot)].append(m.value)  # type: ignore[arg-type]
 
     results: List[Dict[str, Any]] = []
     for (label, time_slot), values in aggregation.items():
