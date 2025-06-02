@@ -12,6 +12,8 @@ L'API a été testée avec `django_rest_framework` qui fournit des outils de tes
 
 Le code et les commentaires sont en anglais pour rester cohérent avec les standards de développement et faciliter la collaboration.
 
+Un hook de pre-commit qui lance ruff et mypy sur le code a été ajouté pour formater le code et vérifier le typing.
+
 ## Technologies utilisées
 
 - **Python 3.12.10**
