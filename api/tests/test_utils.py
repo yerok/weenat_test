@@ -94,7 +94,7 @@ def aggregate(measurements: List[Measurement], span: str) -> List[Dict[str, Any]
 
     for m in measurements:
         label = str(m.label)
-        naive_dt = make_naive(m.at)  # type: ignore
+        naive_dt = make_naive(m.at)  # type: ignore[arg-type]
 
         if span == "hour":
             time_slot = naive_dt.replace(minute=0, second=0, microsecond=0)

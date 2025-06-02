@@ -40,9 +40,18 @@ class FetchDataSummaryTest(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 50)
 
+    def test_summary_non_existing_datalogger_uuid(self) -> None:
+        response = self.client.get(
+            self.url, {"datalogger": "00000000-0000-0000-0000-000000000000"}
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_summary_invalid_datalogger_uuid(self) -> None:
+        response = self.client.get(self.url, {"datalogger": "4"})
+        self.assertEqual(response.status_code, 400)
+
     def test_summary_filter_by_date_range(self) -> None:
         # We arbitrarily pick 2 values representing the time range we will be testing
-        # They are sorted by time so we know how many values we should have
         since = self.measurements[20].at.isoformat()
         before = self.measurements[40].at.isoformat()
 

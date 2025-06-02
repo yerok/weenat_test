@@ -1,25 +1,31 @@
 from typing import Any
+from uuid import UUID
 
 from django.db.models import Avg, QuerySet, Sum
 from django.db.models.functions import TruncDay, TruncHour
 from django.db.models.functions.datetime import TruncBase
-from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import NotFound
 from rest_framework.generics import ListAPIView
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from api.filters import MeasurementFilter
-
 from .models import Datalogger, Measurement
 from .serializers import (
+    DataQueryParamsSerializer,
     DataRecordAggregateResponseSerializer,
     DataRecordRequestSerializer,
     DataRecordResponseSerializer,
     SummaryQueryParamsSerializer,
 )
+
+
+def get_datalogger_or_404(datalogger_id: UUID) -> Datalogger:
+    try:
+        return Datalogger.objects.get(id=datalogger_id)
+    except Datalogger.DoesNotExist as err:
+        raise NotFound(detail=f"Datalogger with id {datalogger_id} not found.") from err
 
 
 class IngestDataView(APIView):
@@ -51,21 +57,28 @@ class IngestDataView(APIView):
 class FetchRawDataView(ListAPIView):
     """
     This view implements the GET /api/data endpoint to fetch raw measurements filtered by query parameters.
-
-    Uses DjangoFilterBackend and a MeasurementFilter to filter by datalogger and  date range
     """
 
-    queryset = Measurement.objects.all()
     serializer_class = DataRecordResponseSerializer
-    filter_backends = [DjangoFilterBackend]
-    filterset_class = MeasurementFilter
 
-    def get_queryset(self) -> QuerySet:
-        datalogger_id = self.request.query_params.get("datalogger")
-        if not datalogger_id:
-            raise ValidationError({"datalogger": "This query parameter is required."})
+    def get_queryset(self) -> QuerySet[Measurement]:
+        serializer = DataQueryParamsSerializer(data=self.request.query_params)
+        serializer.is_valid(raise_exception=True)
+        params = serializer.validated_data
 
-        return Measurement.objects.filter(datalogger_id=datalogger_id)
+        datalogger_id = params["datalogger"]
+        if not Datalogger.objects.filter(id=datalogger_id).exists():
+            raise NotFound(detail=f"Datalogger with id {datalogger_id} not found.")
+
+        datalogger = get_datalogger_or_404(params["datalogger"])
+        queryset = Measurement.objects.filter(datalogger=datalogger)
+
+        if "since" in params:
+            queryset = queryset.filter(at__gte=params["since"])
+        if "before" in params:
+            queryset = queryset.filter(at__lte=params["before"])
+
+        return queryset
 
 
 # custom view - we need to create our own filter and to serialize query params
@@ -78,41 +91,24 @@ class SummaryView(APIView):
     """
 
     def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        query_params_serializer = SummaryQueryParamsSerializer(
-            data=request.query_params
-        )
+        serializer = SummaryQueryParamsSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        params = serializer.validated_data
 
-        if not query_params_serializer.is_valid():
-            return Response(
-                query_params_serializer.errors, status=status.HTTP_400_BAD_REQUEST
-            )
-
-        validated_data = query_params_serializer.validated_data
-
-        datalogger_id = validated_data["datalogger"]
-
-        since = validated_data.get("since")
-        before = validated_data.get("before")
-        span = validated_data.get("span")
-
-        if not datalogger_id:
-            return Response({"detail": "datalogger parameter is required."}, status=400)
-
-        try:
-            datalogger = Datalogger.objects.get(id=datalogger_id)
-        except Datalogger.DoesNotExist:
-            return Response({"detail": "datalogger not found."}, status=404)
+        datalogger = get_datalogger_or_404(params["datalogger"])
 
         measurements = Measurement.objects.filter(datalogger=datalogger)
 
-        if since:
-            measurements = measurements.filter(at__gte=since)
-        if before:
-            measurements = measurements.filter(at__lte=before)
+        if "since" in params:
+            measurements = measurements.filter(at__gte=params["since"])
+        if "before" in params:
+            measurements = measurements.filter(at__lte=params["before"])
+
+        span = params.get("span")
 
         if not span:
-            serializer = DataRecordResponseSerializer(measurements, many=True)
-            return Response(serializer.data)
+            data_serializer = DataRecordResponseSerializer(measurements, many=True)
+            return Response(data_serializer.data)
 
         if span not in ["day", "hour"]:
             return Response({"detail": "Invalid span value."}, status=400)

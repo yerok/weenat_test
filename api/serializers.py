@@ -9,6 +9,18 @@ from rest_framework import serializers
 from .models import Datalogger, Measurement
 
 
+class DataQueryParamsSerializer(serializers.Serializer):
+    """
+    Serializer for query parameters accepted by the '/api/data' endpoint.
+
+    Handles optional 'since', 'before', 'span' and required 'datalogger' UUID.
+    """
+
+    datalogger = serializers.UUIDField(required=True)
+    since = serializers.DateTimeField(required=False)
+    before = serializers.DateTimeField(required=False)
+
+
 class LocationSerializer(serializers.Serializer):
     """
     Serializer for a geographic location with latitude and longitude.
@@ -35,7 +47,7 @@ class MeasurementSerializer(serializers.Serializer):
     according to the label type constraints.
     """
 
-    label = serializers.ChoiceField(choices=[c[0] for c in Measurement.LABEL_CHOICES])
+    label = serializers.ChoiceField(choices=[c[0] for c in Measurement.LABEL_CHOICES])  # type: ignore[assignment]
     value = serializers.FloatField()
 
     def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
@@ -170,7 +182,7 @@ class DataRecordAggregateResponseSerializer(serializers.Serializer):
       - value: aggregated value (average or sum according to the label).
     """
 
-    label = serializers.CharField()
+    label = serializers.CharField()  # type: ignore[assignment]
     time_slot = serializers.DateTimeField()
     value = serializers.FloatField()
 

@@ -18,7 +18,7 @@ RANGES = {
 
 class Command(BaseCommand):
     """
-    Django management command to populate the database with
+    Populate the database with
     random dataloggers and associated measurements.
     """
 

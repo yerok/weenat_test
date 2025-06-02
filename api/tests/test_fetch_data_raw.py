@@ -44,7 +44,6 @@ class FetchDataRawTest(APITestCase):
 
     def test_filter_by_datalogger_and_date_range(self) -> None:
         # We arbitrarily pick 2 values representing the time range we will be testing
-        # They are sorted by time so we know how many values we should have
         since = cast(datetime, self.measurements[8].at).isoformat()
         before = cast(datetime, self.measurements[22].at).isoformat()
 
@@ -52,8 +51,8 @@ class FetchDataRawTest(APITestCase):
         for m in self.measurements:
             at = cast(datetime, m.at).isoformat()
 
-            # Pylance error because datalogguer_id doesn't exist yet, we do not ignore it because Mypy will tell us that's useless
-            if since <= at <= before and m.datalogger_id == self.datalogger.id:
+            # Pylance error because datalogguer_id doesn't exist yet
+            if since <= at <= before and m.datalogger_id == self.datalogger.id:  # type: ignore
                 expected.append(m)
 
         response = self.client.get(
@@ -81,9 +80,12 @@ class FetchDataRawTest(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 0)
 
-    def test_invalid_datalogger_uuid(self) -> None:
+    def test_non_existing_datalogger_uuid(self) -> None:
         response = self.client.get(
             self.url, {"datalogger": "00000000-0000-0000-0000-000000000000"}
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data), 0)
+        self.assertEqual(response.status_code, 404)
+
+    def test_invalid_datalogger_uuid(self) -> None:
+        response = self.client.get(self.url, {"datalogger": "4"})
+        self.assertEqual(response.status_code, 400)
